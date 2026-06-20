@@ -69,7 +69,7 @@ if db_url.startswith(('mysql+pymysql://', 'postgresql://')):
         'pool_recycle': 280,
         'pool_timeout': 15,
     }
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB
+app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_UPLOAD_MB', '2048')) * 1024 * 1024  # 2 GB по умолчанию
 
 # Mail
 app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
@@ -303,6 +303,14 @@ def oauth_fail(provider, message='Не удалось войти через OAut
     app.logger.warning('%s OAuth fail: %s', provider, message)
     flash(f'{message}. Проверь redirect URI и ключи {provider.title()}.', 'error')
     return redirect(url_for('login'))
+
+from werkzeug.exceptions import RequestEntityTooLarge
+
+@app.errorhandler(RequestEntityTooLarge)
+def _too_large(e):
+    limit_mb = app.config['MAX_CONTENT_LENGTH'] // (1024*1024)
+    flash(f'Файл слишком большой. Лимит {limit_mb} МБ. Увеличь MAX_UPLOAD_MB в переменных окружения.', 'error')
+    return redirect(request.referrer or url_for('admin_products')), 302
 
 def save_upload(file_storage, prefix='img'):
     fn = secure_filename(file_storage.filename)
