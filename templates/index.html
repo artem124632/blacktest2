@@ -23,14 +23,15 @@
     <h2 class="section-title">Превью <span class="accent">сборок</span></h2>
     <p class="section-sub">Скриншоты из наших проектов</p>
     <div class="gallery">
-      {% set any_shots = [] %}
+      {% set all_shots = [] %}
       {% for p in products %}
         {% for s in (p.screenshots|from_json if p.screenshots else []) %}
-          <div class="ph" data-lightbox data-src="{{ s }}"><img src="{{ s }}" alt="{{ p.title }}"></div>
+          {% if all_shots|length < 15 %}{% set _ = all_shots.append({'src': s, 'title': p.title}) %}{% endif %}
         {% endfor %}
       {% endfor %}
-      {# placeholders if empty #}
-      {% for i in range(8) %}<div class="ph">Скриншот #{{ i+1 }}<br><small>загрузите в админке</small></div>{% endfor %}
+      {% for it in all_shots %}
+        <div class="ph" data-lightbox data-src="{{ it.src }}"><img src="{{ it.src }}" alt="{{ it.title }}" loading="lazy"></div>
+      {% endfor %}
     </div>
   </div>
 </section>
