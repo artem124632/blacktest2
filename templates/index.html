@@ -23,15 +23,14 @@
     <h2 class="section-title">Превью <span class="accent">сборок</span></h2>
     <p class="section-sub">Скриншоты из наших проектов</p>
     <div class="gallery">
-      {% set all_shots = [] %}
+      {% set any_shots = [] %}
       {% for p in products %}
         {% for s in (p.screenshots|from_json if p.screenshots else []) %}
-          {% if all_shots|length < 15 %}{% set _ = all_shots.append({'src': s, 'title': p.title}) %}{% endif %}
+          <div class="ph" data-lightbox data-src="{{ s }}"><img src="{{ s }}" alt="{{ p.title }}"></div>
         {% endfor %}
       {% endfor %}
-      {% for it in all_shots %}
-        <div class="ph" data-lightbox data-src="{{ it.src }}"><img src="{{ it.src }}" alt="{{ it.title }}" loading="lazy"></div>
-      {% endfor %}
+      {# placeholders if empty #}
+      {% for i in range(8) %}<div class="ph">Скриншот #{{ i+1 }}<br><small>загрузите в админке</small></div>{% endfor %}
     </div>
   </div>
 </section>
@@ -58,11 +57,12 @@
         <div class="buy">
           <form method="post" action="{{ url_for('buy', slug=p.slug) }}" style="display:contents">
             <button class="btn primary" name="method" value="balance">Купить с баланса</button>
-            <button class="btn" name="method" value="crypto">Крипта</button>
+            <button type="button" class="btn rgb-disabled" disabled title="Оплата криптовалютой временно недоступна">Крипта · недоступно</button>
             <button class="btn" name="method" value="funpay">FunPay</button>
             <button class="btn" name="method" value="discord">Discord</button>
           </form>
         </div>
+        <div class="crypto-notice">⚠ Мы временно <b>не принимаем оплату через криптовалюту</b>. Используйте баланс, FunPay или Discord.</div>
       </div>
       {% endfor %}
     </div>
