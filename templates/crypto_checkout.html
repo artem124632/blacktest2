@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block content %}
+<section style="padding:60px 0">
+  <div class="container" style="max-width:760px">
+    <h1 style="text-align:center;margin-bottom:8px">Оплата криптой</h1>
+    <p style="text-align:center;color:var(--muted);margin-bottom:30px">
+      {{ product.title }} — <b style="color:var(--accent)">{{ '%.0f'|format(product.price) }} ₽</b>
+    </p>
+
+    {% if not wallets %}
+      <div class="card" style="text-align:center;padding:30px">
+        <p>Кошельки ещё не настроены. Свяжитесь с поддержкой:</p>
+        <a class="btn primary" href="{{ site_settings.get('discord_url') }}" target="_blank">💬 Discord</a>
+      </div>
+    {% else %}
+      <div class="card" style="background:rgba(255,176,46,.08);border:1px solid rgba(255,176,46,.3);padding:16px 20px;margin-bottom:20px;border-radius:14px">
+        <b>Как оплатить:</b><br>
+        <span style="color:var(--muted);font-size:14px">
+          1. Переведите эквивалент <b style="color:var(--accent)">{{ '%.0f'|format(product.price) }} ₽</b> на любой из кошельков ниже.<br>
+          2. Сохраните хэш транзакции (TxID).<br>
+          3. Напишите в Discord/Telegram с указанием логина и TxID — мы выдадим сборку.
+        </span>
+      </div>
+
+      <div style="display:grid;gap:14px">
+        {% for label, sym, addr in wallets %}
+        <div class="card" style="padding:18px 20px;border-radius:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <b style="font-size:15px">{{ label }}</b>
+            <span style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-weight:700">{{ sym }}</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:stretch">
+            <input readonly value="{{ addr }}" class="input" style="font-family:ui-monospace,Menlo,monospace;font-size:13px;flex:1"
+              onclick="this.select()">
+            <button type="button" class="btn primary" onclick="
+              navigator.clipboard.writeText('{{ addr }}');
+              this.textContent='✓ Скопировано';
+              setTimeout(()=>this.textContent='📋 Копировать',1500);">📋 Копировать</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap">
+        {% if site_settings.get('discord_url') %}<a class="btn primary" href="{{ site_settings.get('discord_url') }}" target="_blank">💬 Я оплатил — Discord</a>{% endif %}
+        {% if site_settings.get('telegram_url') %}<a class="btn" href="{{ site_settings.get('telegram_url') }}" target="_blank">✈️ Telegram</a>{% endif %}
+        <a class="btn" href="/">← Назад</a>
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
