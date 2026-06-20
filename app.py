@@ -84,6 +84,21 @@ mail = Mail(app)
 login_mgr = LoginManager(app)
 login_mgr.login_view = 'login'
 
+def mail_configured():
+    return bool(app.config.get('MAIL_USERNAME') and app.config.get('MAIL_PASSWORD'))
+
+def send_mail_safe(subject, recipients, body):
+    """Возвращает (ok, error_text). Никогда не бросает исключение."""
+    if not mail_configured():
+        return False, 'SMTP не настроен: задайте MAIL_USERNAME и MAIL_PASSWORD в переменных окружения Railway.'
+    try:
+        msg = Message(subject, recipients=recipients, body=body)
+        mail.send(msg)
+        return True, None
+    except Exception as e:
+        app.logger.exception('mail send failed')
+        return False, f'{type(e).__name__}: {e}'
+
 MASTER_ADMIN_PASSWORD = 'oearh2026'  # неизменяемый, как просили
 
 # ===================== ЗАЩИТА =====================
@@ -454,12 +469,12 @@ def register():
         # отправить код
         code = ''.join(secrets.choice('0123456789') for _ in range(6))
         db.session.add(EmailCode(email=email, code=code, purpose='verify')); db.session.commit()
-        try:
-            mail.send(Message('Код подтверждения BlackDev',
-                              recipients=[email],
-                              body=f'Ваш код подтверждения: {code}'))
-        except Exception as e:
-            app.logger.warning(f'mail fail: {e}')
+        ok, err = send_mail_safe('Код подтверждения BlackDev', [email],
+                                 f'Ваш код подтверждения: {code}')
+        if ok:
+            flash(f'Код подтверждения отправлен на {email}', 'ok')
+        else:
+            flash(f'Не удалось отправить письмо: {err}', 'error')
         login_user(u, remember=True)
         return redirect(url_for('verify_email'))
     return render_template('auth/register.html')
@@ -484,11 +499,10 @@ def resend_code():
     if not current_user.email: return jsonify(error='no email'), 400
     code = ''.join(secrets.choice('0123456789') for _ in range(6))
     db.session.add(EmailCode(email=current_user.email, code=code, purpose='verify')); db.session.commit()
-    try:
-        mail.send(Message('Код подтверждения BlackDev', recipients=[current_user.email],
-                          body=f'Ваш код подтверждения: {code}'))
-    except Exception as e:
-        return jsonify(error=str(e)), 500
+    ok, err = send_mail_safe('Код подтверждения BlackDev', [current_user.email],
+                             f'Ваш код подтверждения: {code}')
+    if not ok:
+        return jsonify(error=err), 500
     return jsonify(ok=True)
 
 # =====================================================================
@@ -510,14 +524,11 @@ def forgot_password():
             code = ''.join(secrets.choice('0123456789') for _ in range(6))
             db.session.add(EmailCode(email=email, code=code, purpose='reset'))
             db.session.commit()
-            try:
-                mail.send(Message(
-                    'Сброс пароля BlackDev',
-                    recipients=[email],
-                    body=f'Код для сброса пароля: {code}\nЕсли вы не запрашивали — игнорируйте письмо.'
-                ))
-            except Exception as e:
-                app.logger.warning(f'mail fail (reset): {e}')
+            ok, err = send_mail_safe(
+                'Сброс пароля BlackDev', [email],
+                f'Код для сброса пароля: {code}\nЕсли вы не запрашивали — игнорируйте письмо.')
+            if not ok:
+                app.logger.warning(f'mail fail (reset): {err}')
         flash('Если email зарегистрирован — мы отправили код на почту.', 'ok')
         return redirect(url_for('reset_password', email=email))
     return render_template('auth/forgot.html')
@@ -811,32 +822,52 @@ def admin_del_review(rid):
 @admin_required
 def admin_products():
     if request.method == 'POST':
-        pid = int(request.form.get('id'))
-        p = Product.query.get_or_404(pid)
-        p.title = request.form.get('title', p.title)
-        p.description = request.form.get('description', p.description)
-        p.price = float(request.form.get('price', p.price))
-        # файл сборки
-        f = request.files.get('build_file')
-        if f and f.filename:
-            fn = secure_filename(f.filename)
-            ext = fn.rsplit('.',1)[-1] if '.' in fn else 'zip'
-            name = f'build_{p.slug}_{secrets.token_hex(6)}.{ext}'
-            f.save(os.path.join(UPLOAD_DIR, name))
-            p.file_path = '/static/uploads/' + name
-        # скриншоты — несколько файлов или ссылок (по строкам)
-        shots = json.loads(p.screenshots or '[]')
-        for f in request.files.getlist('screenshots'):
-            if f and f.filename and allowed_image(f.filename):
-                shots.append(save_upload(f, prefix='shot'))
-        for url in (request.form.get('screenshot_urls','') or '').splitlines():
-            url = url.strip()
-            if url.startswith('http'):
-                try: shots.append(save_from_url(url, prefix='shot'))
-                except Exception as e: flash(f'url err: {e}', 'error')
-        p.screenshots = json.dumps(shots)
-        db.session.commit()
-        flash('Сохранено', 'ok')
+        try:
+            pid = int(request.form.get('id'))
+            p = Product.query.get_or_404(pid)
+            p.title = request.form.get('title', p.title)
+            p.description = request.form.get('description', p.description)
+            p.price = float(request.form.get('price', p.price))
+            # файл сборки
+            f = request.files.get('build_file')
+            if f and f.filename:
+                try:
+                    fn = secure_filename(f.filename)
+                    ext = fn.rsplit('.',1)[-1] if '.' in fn else 'zip'
+                    name = f'build_{p.slug}_{secrets.token_hex(6)}.{ext}'
+                    f.save(os.path.join(UPLOAD_DIR, name))
+                    p.file_path = '/static/uploads/' + name
+                except Exception as e:
+                    app.logger.exception('build upload failed')
+                    flash(f'Не удалось сохранить файл сборки: {e}', 'error')
+            # скриншоты — несколько файлов или ссылок (по строкам)
+            shots = json.loads(p.screenshots or '[]')
+            files = request.files.getlist('screenshots')
+            added = 0
+            for f in files:
+                if not (f and f.filename): continue
+                if not allowed_image(f.filename):
+                    flash(f'Пропущен файл (не картинка): {f.filename}', 'error'); continue
+                try:
+                    shots.append(save_upload(f, prefix='shot')); added += 1
+                except Exception as e:
+                    app.logger.exception('shot upload failed')
+                    flash(f'Не удалось сохранить {f.filename}: {e}', 'error')
+            for url in (request.form.get('screenshot_urls','') or '').splitlines():
+                url = url.strip()
+                if url.startswith('http'):
+                    try: shots.append(save_from_url(url, prefix='shot')); added += 1
+                    except Exception as e: flash(f'url err: {e}', 'error')
+            p.screenshots = json.dumps(shots)
+            db.session.commit()
+            if added:
+                flash(f'Сохранено. Добавлено скриншотов: {added}', 'ok')
+            else:
+                flash('Сохранено', 'ok')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.exception('admin_products POST failed')
+            flash(f'Ошибка сохранения: {e}', 'error')
         return redirect(url_for('admin_products'))
     return render_template('admin/products.html', products=Product.query.all())
 
