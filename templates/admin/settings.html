@@ -34,6 +34,47 @@
   </div>
   {% endfor %}
 
+  <h2 style="margin:28px 0 12px">🛠️ Технические работы</h2>
+  <div class="card" style="background:var(--bg-2);padding:18px;border-radius:14px">
+    <div class="adm-grid">
+      <div class="form-row"><label>Режим тех. работ</label>
+        <select class="input" name="maintenance_enabled">
+          <option value="0" {% if site_settings.get('maintenance_enabled')!='1' %}selected{% endif %}>Выключен</option>
+          <option value="1" {% if site_settings.get('maintenance_enabled')=='1' %}selected{% endif %}>Включён (сайт закрыт)</option>
+        </select></div>
+      <div class="form-row"><label>Заголовок</label>
+        <input class="input" name="maintenance_title" value="{{ site_settings.get('maintenance_title','Технические работы') }}"></div>
+      <div class="form-row" style="grid-column:1/-1"><label>Сообщение</label>
+        <input class="input" name="maintenance_message" value="{{ site_settings.get('maintenance_message','') }}"></div>
+      <div class="form-row"><label>Начало работ</label>
+        <input class="input" type="datetime-local" name="maintenance_start" value="{{ site_settings.get('maintenance_start','') }}"></div>
+      <div class="form-row"><label>Конец работ</label>
+        <input class="input" type="datetime-local" name="maintenance_end" value="{{ site_settings.get('maintenance_end','') }}"></div>
+    </div>
+    <p style="color:var(--muted);font-size:13px;margin:10px 0 0">
+      Прогресс и таймер «осталось» считаются автоматически по началу и концу.
+      Админ-панель остаётся доступной. <a href="/maintenance" target="_blank" style="color:var(--accent)">Открыть превью →</a>
+    </p>
+  </div>
+
+  <h2 style="margin:28px 0 12px">₿ Крипто-кошельки (для прямой оплаты)</h2>
+  <div class="card" style="background:var(--bg-2);padding:18px;border-radius:14px">
+    <div class="adm-grid">
+      <div class="form-row"><label>Bitcoin (BTC)</label>
+        <input class="input" name="crypto_btc" value="{{ site_settings.get('crypto_btc','') }}" placeholder="bc1q..."></div>
+      <div class="form-row"><label>USDT (TRC20)</label>
+        <input class="input" name="crypto_usdt_trc20" value="{{ site_settings.get('crypto_usdt_trc20','') }}" placeholder="T..."></div>
+      <div class="form-row"><label>TON</label>
+        <input class="input" name="crypto_ton" value="{{ site_settings.get('crypto_ton','') }}" placeholder="UQ..."></div>
+      <div class="form-row"><label>Ethereum (ETH)</label>
+        <input class="input" name="crypto_eth" value="{{ site_settings.get('crypto_eth','') }}" placeholder="0x..."></div>
+    </div>
+    <p style="color:var(--muted);font-size:13px;margin:10px 0 0">
+      Если заполнен хотя бы один кошелёк — кнопка «Крипта» показывает страницу с адресами и кнопкой «Копировать».
+      Если все пусты — используется CryptoBot URL выше.
+    </p>
+  </div>
+
   <button class="btn primary" type="submit" style="margin-top:16px">💾 Сохранить</button>
 </form>
 {% endblock %}
