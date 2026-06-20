@@ -105,13 +105,41 @@ section{padding:80px 0;scroll-margin-top:80px}
 
 /* FAQ */
 .faq{max-width:840px;margin:0 auto}
-details{background:var(--panel);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden}
-details[open]{border-color:var(--accent)}
-summary{padding:18px 22px;cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details{
+  background:var(--panel);border:1px solid var(--border);border-radius:12px;
+  margin-bottom:10px;overflow:hidden;
+  transition:border-color .35s ease, box-shadow .35s ease, background .35s ease;
+}
+details[open]{border-color:var(--accent);box-shadow:0 6px 24px -10px rgba(255,176,46,.25)}
+summary{padding:18px 22px;cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center;transition:color .25s ease}
+summary:hover{color:var(--accent)}
 summary::-webkit-details-marker{display:none}
-summary::after{content:"+";font-size:24px;color:var(--accent);transition:.2s}
+summary::after{content:"+";font-size:24px;color:var(--accent);transition:transform .4s cubic-bezier(.22,1,.36,1)}
 details[open] summary::after{transform:rotate(45deg)}
-details p{padding:0 22px 18px;color:var(--muted);line-height:1.6}
+details p{padding:0 22px 18px;color:var(--muted);line-height:1.6;margin:0}
+/* smooth open/close — animated by JS via inline max-height on .faq-body */
+.faq-body{overflow:hidden;max-height:0;opacity:0;transition:max-height .45s cubic-bezier(.22,1,.36,1), opacity .35s ease, padding .35s ease}
+.faq-body.open{opacity:1}
+
+/* Crypto unavailable notice — animated RGB */
+@keyframes rgbShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.crypto-notice{
+  margin-top:12px;padding:10px 14px;border-radius:12px;font-size:13px;font-weight:600;
+  color:#fff;text-align:center;letter-spacing:.2px;
+  background:linear-gradient(90deg,#ff004c,#ff8a00,#ffd400,#33ff66,#00d4ff,#7a5cff,#ff00d4,#ff004c);
+  background-size:300% 300%;animation:rgbShift 6s ease infinite;
+  box-shadow:0 6px 20px -8px rgba(255,0,128,.45);
+  border:1px solid rgba(255,255,255,.12);
+}
+.crypto-notice b{color:#fff;text-shadow:0 0 6px rgba(0,0,0,.35)}
+
+.btn.rgb-disabled{
+  position:relative;cursor:not-allowed;color:#fff;border:none;
+  background:linear-gradient(90deg,#ff004c,#ff8a00,#ffd400,#33ff66,#00d4ff,#7a5cff,#ff00d4,#ff004c);
+  background-size:300% 300%;animation:rgbShift 5s ease infinite;
+  opacity:.95;text-shadow:0 0 6px rgba(0,0,0,.4);
+}
+.btn.rgb-disabled:hover{transform:none;filter:brightness(1.05)}
 
 /* CONTACT */
 .contacts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;max-width:740px;margin:0 auto}
