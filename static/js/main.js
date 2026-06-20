@@ -60,6 +60,39 @@ window.addEventListener('load', () => {
   }
 });
 
+// Smooth FAQ (<details>) open/close animation
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.faq details').forEach(det => {
+    const summary = det.querySelector('summary');
+    const body = document.createElement('div');
+    body.className = 'faq-body';
+    while (summary.nextSibling) body.appendChild(summary.nextSibling);
+    det.appendChild(body);
+
+    summary.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (!det.open) {
+        det.open = true;
+        body.classList.add('open');
+        body.style.maxHeight = body.scrollHeight + 'px';
+      } else {
+        body.style.maxHeight = body.scrollHeight + 'px';
+        requestAnimationFrame(() => {
+          body.style.maxHeight = '0px';
+          body.classList.remove('open');
+        });
+        const te = (ev) => {
+          if (ev.propertyName === 'max-height') {
+            det.open = false;
+            body.removeEventListener('transitionend', te);
+          }
+        };
+        body.addEventListener('transitionend', te);
+      }
+    });
+  });
+});
+
 /* ====== АНТИ-ВОР (анти-копирование / DevTools) ====== */
 (function(){
   const isAdminPanel = location.pathname.startsWith('/admin');
