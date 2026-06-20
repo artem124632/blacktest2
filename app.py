@@ -119,16 +119,6 @@ def _security_gate():
     blocked = ('/.env','/.git','/instance/','/blackdev.db','/wp-','/phpmyadmin','/.aws','/config.php')
     if any(b in request.path.lower() for b in blocked):
         abort(404)
-    # режим тех.работ — пускаем только админов и статику/админ-роуты
-    try:
-        if get_setting('maintenance_enabled') == '1':
-            path = request.path
-            allow = (path.startswith('/admin') or path.startswith('/static') or
-                     path == '/maintenance' or path.startswith('/_'))
-            if not allow and not session.get('is_admin'):
-                return redirect(url_for('maintenance_page'))
-    except Exception:
-        pass
 
 @app.after_request
 def _sec_headers(resp):
@@ -138,15 +128,6 @@ def _sec_headers(resp):
     resp.headers['X-Robots-Tag'] = 'noindex, nofollow, noarchive, nosnippet'
     resp.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
     return resp
-
-@app.route('/maintenance')
-def maintenance_page():
-    return render_template('maintenance.html',
-        m_title=get_setting('maintenance_title','Технические работы'),
-        m_message=get_setting('maintenance_message',''),
-        m_start=get_setting('maintenance_start',''),
-        m_end=get_setting('maintenance_end',''),
-    )
 
 @app.route('/robots.txt')
 def _robots():
@@ -404,17 +385,6 @@ def seed():
         'effect': 'none',  # none | summer | newyear | halloween
         'accent_color': '#ffb02e',
         'accent_color_2': '#ff6a00',
-        # тех. работы
-        'maintenance_enabled': '0',
-        'maintenance_title': 'Технические работы',
-        'maintenance_message': 'Мы улучшаем сайт, чтобы он стал ещё лучше. Скоро вернёмся!',
-        'maintenance_start': '',  # ISO datetime, e.g. 2026-06-20T10:00
-        'maintenance_end': '',    # ISO datetime
-        # крипта (кошельки для прямой оплаты)
-        'crypto_btc': '',
-        'crypto_usdt_trc20': '',
-        'crypto_ton': '',
-        'crypto_eth': '',
     }
     for k, v in defaults.items():
         if not Setting.query.get(k):
@@ -739,30 +709,15 @@ def buy(slug):
         db.session.add(Purchase(user_id=current_user.id, product_id=p.id, price=p.price, method='balance'))
         db.session.commit()
         flash('Сборка куплена! Скачайте её в профиле.', 'ok'); return redirect(url_for('profile'))
-    # для криптобота/funpay/discord — направляем по ссылкам из настроек
+    # для funpay/discord — направляем по ссылкам из настроек
     if method == 'crypto':
-        # есть локальные кошельки — показываем красивую страницу оплаты
-        if any(get_setting(k) for k in ('crypto_btc','crypto_usdt_trc20','crypto_ton','crypto_eth')):
-            return redirect(url_for('crypto_checkout', slug=slug))
-        url = get_setting('crypto_bot_url') or get_setting('discord_url')
-    elif method == 'funpay':
+        flash('Оплата криптовалютой временно недоступна. Используйте баланс, FunPay или Discord.', 'error')
+        return redirect(url_for('index') + '#услуги')
+    if method == 'funpay':
         url = get_setting('funpay_url') or get_setting('discord_url')
     else:
         url = get_setting('discord_url')
     return redirect(url or url_for('index'))
-
-@app.route('/buy/<slug>/crypto')
-@login_required
-def crypto_checkout(slug):
-    p = Product.query.filter_by(slug=slug).first_or_404()
-    wallets = [
-        ('Bitcoin (BTC)', 'BTC', get_setting('crypto_btc')),
-        ('USDT (TRC20)', 'USDT', get_setting('crypto_usdt_trc20')),
-        ('TON', 'TON', get_setting('crypto_ton')),
-        ('Ethereum (ETH)', 'ETH', get_setting('crypto_eth')),
-    ]
-    wallets = [w for w in wallets if w[2]]
-    return render_template('crypto_checkout.html', product=p, wallets=wallets)
 
 @app.route('/download/<int:purchase_id>')
 @login_required
@@ -807,10 +762,7 @@ def admin_dash():
 def admin_settings():
     if request.method == 'POST':
         for key in ['site_title','site_tagline','discord_url','telegram_url','funpay_url',
-                    'crypto_bot_url','effect','accent_color','accent_color_2','popup_enabled',
-                    'maintenance_enabled','maintenance_title','maintenance_message',
-                    'maintenance_start','maintenance_end',
-                    'crypto_btc','crypto_usdt_trc20','crypto_ton','crypto_eth']:
+                    'crypto_bot_url','effect','accent_color','accent_color_2','popup_enabled']:
             if key in request.form: set_setting(key, request.form[key])
         # картинки: файл или url
         for field in ['logo_url','banner_url','bg_url','badge_url','popup_image']:
